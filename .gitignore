@@ -1,0 +1,9 @@
+# ignore dir
+obj/
+Properties/
+bin/
+
+# ignore file
+MVP_Calc.csproj
+MVP_Calc.csproj.user
+App.config
