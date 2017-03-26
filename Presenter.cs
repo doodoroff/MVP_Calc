@@ -12,14 +12,17 @@ namespace MVP_Calc
         MainWindow mainWindow;
         Model model;
         MathOp calculate;
-        string argument;
+        CalcException exception;
+        string number;
         bool operationButtonIsBeanClickedBefore;
-        string decimalSeparator = System.Globalization.NumberFormatInfo.CurrentInfo.CurrencyDecimalSeparator;
+        string decimalSeparator;
 
         public Presenter(MainWindow mainwindow)
         {
+            this.decimalSeparator = System.Globalization.NumberFormatInfo.CurrentInfo.CurrencyDecimalSeparator;
             this.mainWindow = mainwindow;
             this.model = new Model();
+            this.exception = new CalcException();
             this.operationButtonIsBeanClickedBefore = false;
             mainWindow.one_clicked += mainWindow_one_clicked;
             mainWindow.two_clicked += mainWindow_two_clicked;
@@ -43,102 +46,164 @@ namespace MVP_Calc
 
         void mainwindow_sign_clicked(object sender, EventArgs e)
         {
-            if (argument == null)
+            if (number == null)
             {
-                argument = "-";
-                mainWindow.output.Text = "-";
+                number = "-";
+                mainWindow.display.Text = "-";
             }
-            else if (argument.Contains("-"))
+            else if (number.Contains("-"))
             {
-                argument = argument.Remove(0, 1);
-                mainWindow.output.Text = argument;
+                number = number.Remove(0, 1);
+                mainWindow.display.Text = number;
             }
                 else
                 {
-                    argument = "-" + argument;
-                    mainWindow.output.Text = argument;
+                    number = "-" + number;
+                    mainWindow.display.Text = number;
                 }
         }
 
         void mainwindow_decimalSeparator_clicked(object sender, EventArgs e)
         {
-            if (argument == null)
+            if (number == null)
             {
-                argument = "0" + decimalSeparator;
-                mainWindow.output.Text = argument ;
+                number = "0" + decimalSeparator;
+                mainWindow.display.Text = number;
             }
-            else if (argument.Contains(decimalSeparator))
+            else if (number.Contains(decimalSeparator))
             {
                 return;
             }
                 else
                 {
-                    this.argument += decimalSeparator;
-                    mainWindow.output.Text = argument;
+                    this.number += decimalSeparator;
+                    mainWindow.display.Text = number;
                 }
         }
 
         void mainWindow_reset_clicked(object sender, EventArgs e)
         {
             calculate = null;
-            mainWindow.output.Text = "0";
-            argument = null;
+            mainWindow.display.Text = "0";
+            number = null;
             operationButtonIsBeanClickedBefore = false;
+            mainWindow.NotCEButtons.IsEnabled = true;
+            model.Argument1 = 0;
+            model.Argument2 = 0;
         }
 
         void mainWindow_eql_clicked(object sender, EventArgs e)
         {
             if (operationButtonIsBeanClickedBefore)
             {
-                if (argument == null || argument == "-")
+                if (number == null || number == "-")
                 {
-                    argument = "0";
+                    number = "0";
                 }
-                model.Argument2 = double.Parse(argument);
+                model.Argument2 = double.Parse(number);
             }
             if (calculate == null)
             {
-                argument = "0";
+                number = "0";
             }
                 else
                 {
-                    argument = Convert.ToString(calculate());
+                    PerformAndShowResult();
                 }
-            model.Argument1 = double.Parse(argument);
-            mainWindow.output.Text = argument;
+            model.Argument1 = double.Parse(number);
             operationButtonIsBeanClickedBefore = false;
+        }
+
+        void PerformAndShowResult()
+        {
+            double result = calculate();
+            try
+            {
+                if (double.IsInfinity(result) || double.IsNaN(result))
+                {
+                    exception.ExceptionComment = "zero divisor error";
+                    throw exception;
+                }
+                else
+                {
+                    number = Convert.ToString(result);
+                    mainWindow.display.Text = number;
+                }
+            }
+            catch
+            {
+                model.Argument1 = 0;
+                mainWindow.display.Text = exception.ExceptionComment;
+                mainWindow.NotCEButtons.IsEnabled = false;
+                number = "0";
+            }
         }
 
         void mainWindow_div_clicked(object sender, EventArgs e)
         {
-            PerformMathOperation("/");
+            PerformAndShowMathOperation("/");
         }
 
         void mainWindow_mult_clicked(object sender, EventArgs e)
         {
-            PerformMathOperation("*");
+            PerformAndShowMathOperation("*");
         }
 
         void mainWindow_minus_clicked(object sender, EventArgs e)
         {
-            PerformMathOperation("-");
+            PerformAndShowMathOperation("-");
         }
 
         void mainWindow_plus_clicked(object sender, EventArgs e)
         {
-            PerformMathOperation("+");
+            PerformAndShowMathOperation("+");
         }
 
-        void PerformMathOperation(string opType)
+        void PerformAndShowMathOperation(string opType)
         {
-            if (argument != null && argument != "-")
+            if (operationButtonIsBeanClickedBefore)
             {
-                model.Argument1 = double.Parse(argument);
+                PerformSecondExpressionMember(opType);
             }
-            argument = null;
             calculate = ChooseMathOperation(opType);
-            mainWindow.output.Text = opType + " ";
+            model.Argument1 = double.Parse(number);
+            mainWindow.display.Text = number + " " + opType;
+            number = null;
             operationButtonIsBeanClickedBefore = true;
+        }
+
+        void PerformSecondExpressionMember(string opType)
+        {
+            if (number == null || number == "-")
+            {
+                calculate = ChooseMathOperation(opType);
+                number = SetDefaultArgumentForMathOperation(opType);
+            }
+            model.Argument2 = double.Parse(number);
+            PerformAndShowResult();
+        }
+
+        string SetDefaultArgumentForMathOperation(string opType)
+        {
+            if (opType == "+" || opType == "-")
+            {
+                return "0";
+            }
+            if (opType == "*" || opType=="/")
+            {
+                return "1";
+            }
+            else
+            {
+                HandleWrongMathOperationSign();
+                return null;
+            }
+        }
+
+        string HandleWrongMathOperationSign()
+        {
+            exception.ExceptionComment = "wrong math operation sign";
+            throw exception;
         }
 
         MathOp ChooseMathOperation(string opType)
@@ -161,6 +226,7 @@ namespace MVP_Calc
             }
             else
             {
+                HandleWrongMathOperationSign();
                 return null;
             }
         }
@@ -217,27 +283,27 @@ namespace MVP_Calc
 
         void HandleDigitButtonPush(string digit)
         {
-            if (argument == null)
+            if (number == null)
             {
-                this.argument = digit;
+                number = digit;
             }
-            else if (argument.Contains(decimalSeparator))
+            else if (number.Contains(decimalSeparator))
             {
-                this.argument += digit;
+                number += digit;
             }
-            else if (argument.StartsWith("0"))
+            else if (number.StartsWith("0"))
             {
-                this.argument = digit;
+                number = digit;
             }
-            else if (argument.StartsWith("-0"))
+            else if (number.StartsWith("-0"))
             {
-                this.argument = "-" + digit;
+                number = "-" + digit;
             }
                 else
                 {
-                    this.argument += digit;
+                    number += digit;
                 }
-            mainWindow.output.Text = argument;
+            mainWindow.display.Text = number;
         }
     }
 }

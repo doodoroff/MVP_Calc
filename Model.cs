@@ -37,14 +37,7 @@ namespace MVP_Calc
 
         public double Div()
         {
-            if(argument2 !=0)
-            {
-                return argument1 / argument2;
-            }
-            else
-            {
-                return 0;
-            }
+            return argument1 / argument2;   
         }
 
     }
